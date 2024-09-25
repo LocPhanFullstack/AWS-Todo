@@ -1,101 +1,168 @@
-import Image from "next/image";
+'use client'
+
+import { addTodo } from '@/actions/addTodo'
+import { deleteTodo } from '@/actions/deleteTodo'
+import { getTodo } from '@/actions/getTodo'
+import { updateTodo } from '@/actions/updateTodo'
+import Popup from '@/components/Popup'
+import { FormEvent, useEffect, useState } from 'react'
+import { MdEdit } from 'react-icons/md'
+import { MdDelete } from 'react-icons/md'
+
+interface Todo {
+  id: number
+  todo: string
+  status: boolean
+}
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const [isPopupOpen, setIsPopupOpen] = useState(false)
+  const [tableData, setTableData] = useState<Todo[]>([])
+  const [editTodo, setEditTodo] = useState<Todo | undefined>()
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
-  );
+  const openPopup = () => {
+    setIsPopupOpen(true)
+  }
+
+  const closePopup = () => {
+    setIsPopupOpen(false)
+    setEditTodo(undefined)
+  }
+
+  const loadTableData = async () => {
+    try {
+      const todos: Todo[] = await getTodo()
+      setTableData(todos)
+    } catch (error) {
+      throw error
+    }
+  }
+
+  const handleTodoSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+
+    const target = event.target as typeof event.target & {
+      todo: { value: string }
+    }
+
+    try {
+      if (editTodo) {
+        await updateTodo(editTodo)
+      } else {
+        await addTodo(target.todo.value)
+      }
+      loadTableData()
+      closePopup()
+    } catch (error) {
+      console.log('Failed to create todo: ', error)
+      throw error
+    }
+  }
+
+  const doneTodo = async (todo: Todo) => {
+    try {
+      await updateTodo({ ...todo, status: true })
+      await loadTableData()
+    } catch (error) {
+      throw error
+    }
+  }
+
+  const deleteItem = async (id: number) => {
+    try {
+      await deleteTodo(id)
+      await loadTableData()
+    } catch (error) {
+      throw error
+    }
+  }
+
+  useEffect(() => {
+    loadTableData()
+  }, [])
+
+  return (
+    <main className='bg-gray-800 w-4/5 mx-auto mt-20 p-5 rounded-lg'>
+      <div className='flex justify-between items-center mb-3'>
+        <div className='text-3xl text-white'>Todos</div>
+        <button onClick={openPopup} className='bg-blue-500 text-white px-5 py-3 text-xl rounded-xl'>
+          Add Todos
+        </button>
+      </div>
+
+      <Popup isOpen={isPopupOpen} onClose={closePopup}>
+        <form onSubmit={handleTodoSubmit} className='mx-auto'>
+          <div className='mb-5'>
+            <label htmlFor='todo' className='block mb-2 text-sm font-medium text-white'>
+              Todo
+            </label>
+            {editTodo ? (
+              <input
+                type='text'
+                required
+                id='todo'
+                value={editTodo.todo}
+                onChange={(e) => setEditTodo((prev) => (prev ? { ...prev, todo: e.target.value } : { id: 0, todo: e.target.value, status: false }))}
+                placeholder='Enter your task'
+                className='text-sm rounded-lg block w-full p-2.5 bg-gray-700 border-gray-600 placeholder-gray-400 text-white shadow-sm-light'
+              />
+            ) : (
+              <input
+                type='text'
+                required
+                id='todo'
+                placeholder='Enter your task'
+                className='text-sm rounded-lg block w-full p-2.5 bg-gray-700 border-gray-600 placeholder-gray-400 text-white shadow-sm-light'
+              />
+            )}
+          </div>
+          <button type='submit' className='px-4 py-2 bg-blue-500 text-white rounded-lg'>
+            {editTodo ? 'Update Todo' : 'Add Todo'}
+          </button>
+        </form>
+      </Popup>
+
+      <div className='mt-5'>
+        <table className='w-full border rounded-xl overflow-hidden'>
+          <thead className='bg-blue-900'>
+            <tr>
+              <th className='text-center py-3 border border-gray-500 text-lg'>Done</th>
+              <th className='text-center py-3 border border-gray-500 text-lg'>Task</th>
+              <th className='text-center py-3 border border-gray-500 text-lg'>Edit</th>
+              <th className='text-center py-3 border border-gray-500 text-lg'>Delete</th>
+            </tr>
+          </thead>
+          <tbody>
+            {tableData &&
+              tableData.map((row, i) => (
+                <tr key={i} className='text-center odd:bg-gray-700 even:bg-gray-600'>
+                  <td className='py-3 border border-gray-500'>
+                    <button onClick={() => doneTodo(row)}>
+                      <div className='w-4 h-4 cursor-pointer border border-white rounded-sm'></div>
+                    </button>
+                  </td>
+                  <td className='py-3 border border-gray-500'>{row.todo}</td>
+                  <td className='py-3 border border-gray-500'>
+                    <button
+                      onClick={() => {
+                        setIsPopupOpen(true)
+                        setEditTodo(row)
+                      }}
+                      className='bg-yellow-200 rounded-lg px-4 py-2 cursor-pointer hover:opacity-80'
+                    >
+                      <MdEdit className='w-6 h-6 text-black' />
+                    </button>
+                  </td>
+                  <td className='py-3 border border-gray-500'>
+                    <button onClick={() => deleteItem(row.id)} className='bg-red-400 rounded-lg px-4 py-2 cursor-pointer hover:opacity-80'>
+                      <MdDelete className='w-6 h-6 text-black' />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+          </tbody>
+        </table>
+      </div>
+    </main>
+  )
 }
